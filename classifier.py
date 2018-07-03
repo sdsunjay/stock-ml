@@ -2,9 +2,13 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import cross_val_score
 
 import parse_data
+import os.path
 
 def main():
     data = []
+    if os.path.isfile(parse_data.CLEAN_DATA_PATH) == False:
+          print(parse_data.CLEAN_DATA_PATH + ' not found')
+          return
     with open(parse_data.CLEAN_DATA_PATH, 'r') as file:
         for line in file:
             data.append(line.split("\t"))

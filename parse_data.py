@@ -13,7 +13,9 @@ VOLUME_INDEX = 6
 
 def fetch_data():
     data = []
-
+    if os.path.isdir(RAW_DATA_PATH) == False:
+        print(RAW_DATA_PATH + ' not found')
+        return data
     for filename in os.listdir(RAW_DATA_PATH):
         path = os.path.join(RAW_DATA_PATH, filename)
 
