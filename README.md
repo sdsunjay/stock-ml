@@ -1,2 +1,2 @@
 # stock-ml
-stock ml for fun and project
+stock ml for fun and profit
