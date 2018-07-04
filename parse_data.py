@@ -39,7 +39,9 @@ def make_features(data):
             continue
 
         label = 0
-        if (data[index - 1][CLOSING_INDEX] < data[index][CLOSING_INDEX]):
+        yesterday = data[index - 1][CLOSING_INDEX]
+        today = data[index][CLOSING_INDEX]
+        if float(today) > (float(yesterday)*1.05):
             label = 1
 
         features = [float(point[CLOSING_INDEX]), int(point[VOLUME_INDEX]), label]
