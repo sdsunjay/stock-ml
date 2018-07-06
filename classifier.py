@@ -22,7 +22,7 @@ from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
 import parse_data
 import os.path
 
-def train_and_predict(classy, x, y):
+def train_classifier(classy, x, y):
     # Split into training and test
     X_train, X_test, y_train, y_test = train_test_split(x, y, test_size=0.25)
     # training
@@ -30,7 +30,7 @@ def train_and_predict(classy, x, y):
     accuracy = classy.score(X_test, y_test)
     print('Accuracy: ' + str(accuracy))
 
-def eriq_train_and_predict(classy, x, y):
+def train_and_predict(classy, x, y):
     accuracy = cross_val_score(classy, X = x, y = y, cv = 10, scoring = 'accuracy').mean()
     precision = cross_val_score(classy, X = x, y = y, cv = 10, scoring = 'precision').mean()
     recall = cross_val_score(classy, X = x, y = y, cv = 10, scoring = 'recall').mean()
@@ -52,13 +52,12 @@ def main():
     x = [[float(val) for val in point[0:-1]] for point in data]
     y = [int(point[-1]) for point in data]
 
-    names = ["Logistic Regression", "Nearest Neighbors", "Linear SVM", "RBF SVM", "RBF SVM .1 Gamma", "Gaussian Process", "Decision Tree", "Random Forest", "Neural Net", "AdaBoost", "Naive Bayes", "QDA"]
+    names = ["Logistic Regression", "Nearest Neighbors", "RBF SVM", "RBF SVM .1 Gamma", "Gaussian Process", "Decision Tree", "Random Forest", "Neural Net", "AdaBoost", "Naive Bayes", "QDA"]
 
 
     classifiers = [
     LogisticRegression(),
     KNeighborsClassifier(3),
-    SVC(kernel='linear', C=2),
     SVC(gamma=2, C=1),
     SVC(kernel='rbf', C=1, gamma=0.10000000000000001),
     GaussianProcessClassifier(1.0 * RBF(1.0)),
@@ -68,11 +67,13 @@ def main():
     AdaBoostClassifier(),
     GaussianNB(),
     QuadraticDiscriminantAnalysis()]
+    names = ['Logistic Regression']
+    classifiers = [LogisticRegression()]
     # TEST
     print(len(data))
     # iterate over classifiers
     for name, clf in zip(names, classifiers):
         print(name)
-        train_and_predict(clf, x, y)
+        train_classifier(clf, x, y)
 if __name__ == '__main__':
     main()
