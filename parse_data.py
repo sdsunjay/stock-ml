@@ -10,7 +10,7 @@ MIN_DATE = '2018-01-01'
 DATE_INDEX = 1
 CLOSING_INDEX = 2
 VOLUME_INDEX = 6
-
+N_DAYS = 14
 def fetch_data():
     data = []
     if os.path.isdir(RAW_DATA_PATH) == False:
@@ -26,6 +26,29 @@ def fetch_data():
 
     return data
 
+def calculate_rsi(data, index):
+    sum_gain = 0
+    sum_loss = 0
+    for i in range(N_DAYS):
+        temp = float(data[index - (i)][CLOSING_INDEX]) - float(data[index - (i+1)][CLOSING_INDEX])
+        if(temp < 0):
+            sum_loss+= abs(temp)
+        elif(temp > 0):
+            sum_gain+= temp
+    if sum_loss == 0:
+        sum_loss = 1
+    if sum_gain == 0:
+        sum_gain = 1
+    rs = sum_gain / sum_loss
+    rsi = 100 - (100/(1+rs))
+    return float("{0:.2f}".format(rsi))
+
+def calculate_simple_moving_average(data, index, n_days):
+    sum1 = 0
+    for i in range(n_days):
+        sum1+= float(data[index - (i+1)][CLOSING_INDEX])
+    return float("{0:.2f}".format(sum1/n_days))
+
 def make_features(data):
     points = []
 
@@ -39,13 +62,17 @@ def make_features(data):
             continue
 
         label = 0
-        yesterday = data[index - 1][CLOSING_INDEX]
-        n_days_ago = data[index - 14][CLOSING_INDEX]
+        # yesterday = data[index - 1][CLOSING_INDEX]
+        n_days_ago = data[index - N_DAYS][CLOSING_INDEX]
         today = data[index][CLOSING_INDEX]
         if float(today) > (float(n_days_ago)*1.05):
             label = 1
-
-        features = [float(point[CLOSING_INDEX]), int(point[VOLUME_INDEX]), label]
+        ten_day_ma = calculate_simple_moving_average(data, index, 10)
+        twenty_five_day_ma = calculate_simple_moving_average(data, index, 25)
+        n_day_momentum = float("{0:.2f}".format(float(data[index][CLOSING_INDEX]) - float(data[index - N_DAYS][CLOSING_INDEX])))
+        rsi = calculate_rsi(data, index)
+        features = [float(point[CLOSING_INDEX]), int(point[VOLUME_INDEX]),
+                ten_day_ma, twenty_five_day_ma, n_day_momentum, rsi, label]
 
         if (features[0] <= 0.0 or features[1] <= 0):
             continue
