@@ -40,8 +40,9 @@ def make_features(data):
 
         label = 0
         yesterday = data[index - 1][CLOSING_INDEX]
+        n_days_ago = data[index - 14][CLOSING_INDEX]
         today = data[index][CLOSING_INDEX]
-        if float(today) > (float(yesterday)*1.05):
+        if float(today) > (float(n_days_ago)*1.05):
             label = 1
 
         features = [float(point[CLOSING_INDEX]), int(point[VOLUME_INDEX]), label]
@@ -63,8 +64,8 @@ def main():
 
     # TEST
     print("Featureized: %d" % (len(features)))
-
-    os.makedirs(CLEAN_DATA_DIR, exist_ok = True)
+    if not os.path.exists(CLEAN_DATA_DIR):
+        os.makedirs(CLEAN_DATA_DIR)
 
     with open(CLEAN_DATA_PATH, 'w') as file:
         file.write('\n'.join(['\t'.join([str(part) for part in point]) for point in features]))
