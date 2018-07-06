@@ -1,8 +1,43 @@
-from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import cross_val_score
+from sklearn.linear_model import LogisticRegression, LinearRegression
+from sklearn.model_selection import cross_val_score, train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
+
+# import numpy as np
+# import matplotlib.pyplot as plt
+# from matplotlib.colors import ListedColormap
+# from sklearn.model_selection import train_test_split
+# from sklearn.preprocessing import StandardScaler
+# from sklearn.datasets import make_moons, make_circles, make_classification
+from sklearn.neural_network import MLPClassifier
+from sklearn.gaussian_process import GaussianProcessClassifier
+from sklearn.gaussian_process.kernels import RBF
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
+from sklearn.naive_bayes import GaussianNB
+from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
+
 
 import parse_data
 import os.path
+
+def train_and_predict(classy, x, y):
+    # Split into training and test
+    X_train, X_test, y_train, y_test = train_test_split(x, y, test_size=0.25)
+    # training
+    classy.fit(X_train, y_train)
+    accuracy = classy.score(X_test, y_test)
+    print('Accuracy: ' + str(accuracy))
+
+def eriq_train_and_predict(classy, x, y):
+    accuracy = cross_val_score(classy, X = x, y = y, cv = 10, scoring = 'accuracy').mean()
+    precision = cross_val_score(classy, X = x, y = y, cv = 10, scoring = 'precision').mean()
+    recall = cross_val_score(classy, X = x, y = y, cv = 10, scoring = 'recall').mean()
+    f1 = cross_val_score(classy, X = x, y = y, cv = 10, scoring = 'f1').mean()
+
+    print('Accuracy: %f, Precision: %f, Recall: %f, F1: %f' % (accuracy, precision, recall, f1))
+
 
 def main():
     data = []
@@ -17,17 +52,27 @@ def main():
     x = [[float(val) for val in point[0:-1]] for point in data]
     y = [int(point[-1]) for point in data]
 
+    names = ["Logistic Regression", "Nearest Neighbors", "Linear SVM", "RBF SVM", "RBF SVM .1 Gamma", "Gaussian Process", "Decision Tree", "Random Forest", "Neural Net", "AdaBoost", "Naive Bayes", "QDA"]
+
+
+    classifiers = [
+    LogisticRegression(),
+    KNeighborsClassifier(3),
+    SVC(kernel='linear', C=2),
+    SVC(gamma=2, C=1),
+    SVC(kernel='rbf', C=1, gamma=0.10000000000000001),
+    GaussianProcessClassifier(1.0 * RBF(1.0)),
+    DecisionTreeClassifier(max_depth=5),
+    RandomForestClassifier(max_depth=5, n_estimators=10, max_features=2),
+    MLPClassifier(alpha=1),
+    AdaBoostClassifier(),
+    GaussianNB(),
+    QuadraticDiscriminantAnalysis()]
     # TEST
     print(len(data))
-
-    classy = LogisticRegression()
-
-    accuracy = cross_val_score(classy, X = x, y = y, cv = 10, scoring = 'accuracy').mean()
-    precision = cross_val_score(classy, X = x, y = y, cv = 10, scoring = 'precision').mean()
-    recall = cross_val_score(classy, X = x, y = y, cv = 10, scoring = 'recall').mean()
-    f1 = cross_val_score(classy, X = x, y = y, cv = 10, scoring = 'f1').mean()
-
-    print('Accuracy: %f, Precision: %f, Recall: %f, F1: %f' % (accuracy, precision, recall, f1))
-
+    # iterate over classifiers
+    for name, clf in zip(names, classifiers):
+        print(name)
+        train_and_predict(clf, x, y)
 if __name__ == '__main__':
     main()
