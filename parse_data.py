@@ -13,6 +13,7 @@ VOLUME_INDEX = 6
 N_DAYS = 14
 
 def fetch_data():
+    ''' Read stock data from CSV files'''
     data = []
     if os.path.isdir(RAW_DATA_PATH) == False:
         print(RAW_DATA_PATH + ' not found')
@@ -20,11 +21,14 @@ def fetch_data():
     for filename in os.listdir(RAW_DATA_PATH):
         path = os.path.join(RAW_DATA_PATH, filename)
 
-        with open(path, 'r') as file:
-            file.readline()
-            for line in file:
-                data.append(line.strip().split(','))
+        if os.path.isfile(path) == False:
+            continue
 
+        with open(path) as f:
+            # read first line to remove header
+            f.readline()
+            for line in f:
+                data.append(line.strip().split(','))
     return data
 
 def calculate_average_volume(data, index):
@@ -40,8 +44,7 @@ def calculate_average_volume(data, index):
     #     return 1
     # else:
     #    return 0
-    return float(sum1/N_DAYS)
-
+    return float("{0:.2f}".format(sum1/N_DAYS))
 
 def calculate_rsi(data, index):
     sum_gain = 0.0
