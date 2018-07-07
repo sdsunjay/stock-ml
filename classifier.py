@@ -51,7 +51,6 @@ def main():
     # Pulled off label.
     x = [[float(val) for val in point[0:-1]] for point in data]
     y = [int(point[-1]) for point in data]
-
     names = ["Logistic Regression", "Nearest Neighbors", "RBF SVM", "RBF SVM .1 Gamma", "Gaussian Process", "Decision Tree", "Random Forest", "Neural Net", "AdaBoost", "Naive Bayes", "QDA"]
 
 
@@ -75,5 +74,6 @@ def main():
     for name, clf in zip(names, classifiers):
         print(name)
         train_classifier(clf, x, y)
+
 if __name__ == '__main__':
     main()
