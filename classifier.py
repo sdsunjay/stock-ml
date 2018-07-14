@@ -18,17 +18,18 @@ from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
 
-
 import parse_data
 import os.path
+from sklearn.externals import joblib
 
-def train_classifier(classy, x, y):
+def train_classifier(name, classy, x, y):
     # Split into training and test
-    X_train, X_test, y_train, y_test = train_test_split(x, y, test_size=0.25)
+    X_train, X_test, y_train, y_test = train_test_split(x, y, test_size=0.10)
     # training
     classy.fit(X_train, y_train)
     accuracy = classy.score(X_test, y_test)
     print('Accuracy: ' + str(accuracy))
+    joblib.dump(classy, 'classifiers/'+ str(name)+'.pkl')
 
 def train_and_predict(classy, x, y):
     accuracy = cross_val_score(classy, X = x, y = y, cv = 10, scoring = 'accuracy').mean()
@@ -41,10 +42,10 @@ def train_and_predict(classy, x, y):
 
 def main():
     data = []
-    if os.path.isfile(parse_data.CLEAN_DATA_PATH) == False:
-          print(parse_data.CLEAN_DATA_PATH + ' not found')
+    if os.path.isfile(parse_data.CLEAN_DATA_PATH_TRAIN) == False:
+          print(parse_data.CLEAN_DATA_PATH_TRAIN + ' not found')
           return
-    with open(parse_data.CLEAN_DATA_PATH, 'r') as file:
+    with open(parse_data.CLEAN_DATA_PATH_TRAIN, 'r') as file:
         for line in file:
             data.append(line.split("\t"))
 
@@ -66,14 +67,16 @@ def main():
     AdaBoostClassifier(),
     GaussianNB(),
     QuadraticDiscriminantAnalysis()]
-    names = ['Logistic Regression']
-    classifiers = [LogisticRegression()]
+
+    # names = ['Logistic Regression']
+    # classifiers = [LogisticRegression()]
+
     # TEST
     print(len(data))
     # iterate over classifiers
     for name, clf in zip(names, classifiers):
         print(name)
-        train_classifier(clf, x, y)
+        train_classifier(name, clf, x, y)
 
 if __name__ == '__main__':
     main()
