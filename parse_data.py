@@ -1,19 +1,32 @@
 import os
+from os.path import basename
 
 DATA_PATH = os.path.join('data')
 RAW_DATA_PATH = os.path.join(DATA_PATH, 'raw')
 CLEAN_DATA_DIR = os.path.join(DATA_PATH, 'clean')
-CLEAN_DATA_PATH = os.path.join(CLEAN_DATA_DIR, 'data.txt')
+CLEAN_DATA_PATH_TRAIN = os.path.join(CLEAN_DATA_DIR, 'train_data.txt')
+CLEAN_TEST_DATA_DIR = os.path.join(CLEAN_DATA_DIR, 'test')
 
 MIN_DATE = '2018-01-01'
+MAX_DATE = '2018-05-01'
 
 DATE_INDEX = 1
 CLOSING_INDEX = 2
 VOLUME_INDEX = 6
 N_DAYS = 14
 
+def fetch_data_from_file(filename):
+    ''' Read stock data from a CSV file'''
+    data = []
+    with open(filename) as f:
+        # read first line to remove header
+        f.readline()
+        for line in f:
+            data.append(line.strip().split(','))
+    return data
+
 def fetch_data():
-    ''' Read stock data from CSV files'''
+    ''' Read stock data from all CSV files in RAW_DATA_PATH'''
     data = []
     if os.path.isdir(RAW_DATA_PATH) == False:
         print(RAW_DATA_PATH + ' not found')
@@ -75,7 +88,7 @@ def calculate_simple_moving_average(data, index, n_days):
         sum1+= float(data[index - i][CLOSING_INDEX])
     return float("{0:.2f}".format(sum1/n_days))
 
-def make_features(data):
+def make_features(data, start_date, end_date):
     points = []
 
     # We know the data is sorted.
@@ -84,7 +97,9 @@ def make_features(data):
 
         # TODO(eriq): We skip the first point, but if we didn't we
         # would have to be careful on the label for the first point.
-        if (point[DATE_INDEX] < MIN_DATE):
+        if (point[DATE_INDEX] < start_date):
+            continue
+        if (point[DATE_INDEX] > end_date):
             continue
         if (int(point[VOLUME_INDEX]) == 0):
             continue
@@ -100,7 +115,7 @@ def make_features(data):
         n_day_momentum = float("{0:.2f}".format(float(data[index][CLOSING_INDEX]) - float(data[index - N_DAYS][CLOSING_INDEX])))
         rsi = calculate_rsi(data, index)
         volume = calculate_average_volume(data, index)
-        features = [float(point[CLOSING_INDEX]), float(volume), ten_day_ma, twenty_five_day_ma, n_day_momentum, rsi, label]
+        features = [float(point[CLOSING_INDEX]), float(point[VOLUME_INDEX]), ten_day_ma, twenty_five_day_ma, n_day_momentum, rsi, label]
 
         if (features[0] <= 0.0):
             continue
@@ -109,23 +124,75 @@ def make_features(data):
 
     return points
 
-def main():
-    data = fetch_data()
+def output_to_file(features, train, test, symbol):
 
+    # TEST
+    print("Sucessfully Featureized: %d" % (len(features)))
+    if not os.path.exists(CLEAN_DATA_DIR):
+        os.makedirs(CLEAN_DATA_DIR)
+    if not os.path.exists(CLEAN_TEST_DATA_DIR):
+        os.makedirs(CLEAN_TEST_DATA_DIR)
+
+    if train:
+        path = CLEAN_DATA_PATH_TRAIN
+
+    elif test:
+        path = os.path.join(CLEAN_TEST_DATA_DIR, symbol + '_test_data.txt')
+
+    print('Writing to: ' + path)
+    with open(path, 'w') as file:
+        file.write('\n'.join(['\t'.join([str(part) for part in point]) for point in features]))
+
+def build_test_data(start_date, end_date):
+
+    if os.path.isdir(RAW_DATA_PATH) == False:
+        print(RAW_DATA_PATH + ' not found')
+        return data
+    for filename in os.listdir(RAW_DATA_PATH):
+        path = os.path.join(RAW_DATA_PATH, filename)
+        if os.path.isfile(path) == False:
+            continue
+        data = fetch_data_from_file(path)
+        # TEST
+        print("Raw Data: %d" % (len(data)))
+
+        features = make_features(data, start_date, end_date)
+
+        if not features:
+            print('Error: features list is empty\n')
+        else:
+            output_to_file(features, False, True, filename.split('.')[0])
+
+def build_train_data(start_date, end_date):
+
+    data = fetch_data()
     # TEST
     print("Raw Data: %d" % (len(data)))
 
-    features = make_features(data)
-    if not features:
-        print('Error\n')
-        return
-    # TEST
-    print("Featureized: %d" % (len(features)))
-    if not os.path.exists(CLEAN_DATA_DIR):
-        os.makedirs(CLEAN_DATA_DIR)
+    features = make_features(data, start_date, end_date)
 
-    with open(CLEAN_DATA_PATH, 'w') as file:
-        file.write('\n'.join(['\t'.join([str(part) for part in point]) for point in features]))
+    if not features:
+        print('Error: features list is empty\n')
+    else:
+        output_to_file(features, True, False, '')
+
+def main(train, test):
+
+    if train:
+        start_date = '2017-04-01'
+        end_date = '2018-04-30'
+        build_train_data(start_date, end_date)
+
+    elif test:
+        start_date = '2018-05-01'
+        end_date = '2018-07-01'
+        build_test_data(start_date, end_date)
+
+    print('Start Date: ' + start_date)
+    print('End Date: ' + end_date)
+
 
 if __name__ == '__main__':
-    main()
+    train = False
+    test = True
+    main(train, test)
