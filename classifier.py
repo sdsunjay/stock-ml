@@ -52,21 +52,31 @@ def main():
     # Pulled off label.
     x = [[float(val) for val in point[0:-1]] for point in data]
     y = [int(point[-1]) for point in data]
-    names = ["Logistic Regression", "Nearest Neighbors", "RBF SVM", "RBF SVM .1 Gamma", "Gaussian Process", "Decision Tree", "Random Forest", "Neural Net", "AdaBoost", "Naive Bayes", "QDA"]
 
+    names = ["Logistic Regression", "Nearest Neighbors", "RBF SVM", "RBF SVM .1 Gamma", "Decision Tree", "Random Forest", "Neural Net", "AdaBoost", "Naive Bayes", "QDA"]
 
     classifiers = [
     LogisticRegression(),
     KNeighborsClassifier(3),
     SVC(gamma=2, C=1),
     SVC(kernel='rbf', C=1, gamma=0.10000000000000001),
-    GaussianProcessClassifier(1.0 * RBF(1.0)),
     DecisionTreeClassifier(max_depth=5),
     RandomForestClassifier(max_depth=5, n_estimators=10, max_features=2),
     MLPClassifier(alpha=1),
     AdaBoostClassifier(),
     GaussianNB(),
     QuadraticDiscriminantAnalysis()]
+
+    classifiers = [
+    LogisticRegression(),
+    KNeighborsClassifier(3),
+    DecisionTreeClassifier(max_depth=5),
+    RandomForestClassifier(max_depth=5, n_estimators=10, max_features=2),
+    MLPClassifier(alpha=1),
+    AdaBoostClassifier(),
+    GaussianNB(),
+    QuadraticDiscriminantAnalysis()]
+    names = ["Logistic Regression", "Nearest Neighbors", "Decision Tree", "Random Forest", "Neural Net", "AdaBoost", "Naive Bayes", "QDA"]
 
     # names = ['Logistic Regression']
     # classifiers = [LogisticRegression()]
