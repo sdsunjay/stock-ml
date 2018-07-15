@@ -180,12 +180,12 @@ def main(train, test):
 
     if train:
         start_date = '2017-04-01'
-        end_date = '2018-04-30'
+        end_date = '2018-05-30'
         build_train_data(start_date, end_date)
 
     elif test:
-        start_date = '2018-05-01'
-        end_date = '2018-07-01'
+        start_date = '2018-06-01'
+        end_date = '2018-06-22'
         build_test_data(start_date, end_date)
 
     print('Start Date: ' + start_date)
@@ -193,6 +193,6 @@ def main(train, test):
 
 
 if __name__ == '__main__':
-    train = False
-    test = True
+    train = True
+    test = False
     main(train, test)
