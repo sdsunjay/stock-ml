@@ -58,8 +58,10 @@ def read_test_files(clf):
                     correct_sell_prediction +=1
             if sell_prediction != 0 and correct_sell_prediction !=0:
                 sell_accuracy = correct_sell_prediction/sell_prediction
-        if(buy_accuracy > .80 and sell_accuracy > .80):
+        if(buy_accuracy > .75 and sell_accuracy > .75):
             symbol = filename.split('_')[0]
+            print('Predictions: ' + str(predictions))
+            print('Labels: ' + str(y))
             print(symbol + ' Accuracy: ' + str(buy_accuracy) + ' ' + str(sell_accuracy))
 
 def main():
