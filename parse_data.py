@@ -88,6 +88,12 @@ def calculate_simple_moving_average(data, index, n_days):
         sum1+= float(data[index - i][CLOSING_INDEX])
     return float("{0:.2f}".format(sum1/n_days))
 
+def should_buy_stock(today_price, future_price):
+    if (float(today_price)*1.05) < float(future_price):
+        return True
+    return False
+
+
 def make_features(data, start_date, end_date):
     points = []
 
@@ -105,16 +111,21 @@ def make_features(data, start_date, end_date):
             continue
 
         label = 0
-        # yesterday = data[index - 1][CLOSING_INDEX]
-        n_days_ago = data[index - N_DAYS][CLOSING_INDEX]
-        today = data[index][CLOSING_INDEX]
-        if float(today) > (float(n_days_ago)*1.05):
+        if index + N_DAYS < len(data):
+            # price in the future
+            future_price = data[index + N_DAYS][CLOSING_INDEX]
+        else:
+            continue
+
+        today_price = data[index][CLOSING_INDEX]
+
+        if should_buy_stock(today_price, future_price):
             label = 1
         ten_day_ma = calculate_simple_moving_average(data, index, 10)
         twenty_five_day_ma = calculate_simple_moving_average(data, index, 25)
         n_day_momentum = float("{0:.2f}".format(float(data[index][CLOSING_INDEX]) - float(data[index - N_DAYS][CLOSING_INDEX])))
         rsi = calculate_rsi(data, index)
-        volume = calculate_average_volume(data, index)
+        # volume = calculate_average_volume(data, index)
         features = [float(point[CLOSING_INDEX]), float(point[VOLUME_INDEX]), ten_day_ma, twenty_five_day_ma, n_day_momentum, rsi, label]
 
         if (features[0] <= 0.0):
@@ -180,12 +191,12 @@ def main(train, test):
 
     if train:
         start_date = '2017-04-01'
-        end_date = '2018-05-30'
+        end_date = '2018-04-30'
         build_train_data(start_date, end_date)
 
     elif test:
-        start_date = '2018-06-01'
-        end_date = '2018-06-22'
+        start_date = '2018-05-01'
+        end_date = '2018-06-01'
         build_test_data(start_date, end_date)
 
     print('Start Date: ' + start_date)
@@ -193,6 +204,6 @@ def main(train, test):
 
 
 if __name__ == '__main__':
-    train = True
-    test = False
+    train = False
+    test = True
     main(train, test)
