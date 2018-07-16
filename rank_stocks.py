@@ -39,15 +39,30 @@ def read_test_files(clf):
         y = [int(point[-1]) for point in data]
         predictions = clf.predict(x)
         dates = ['2018-05-01', '2018-05-02', '2018-05-03', '2018-05-04', '2018-05-07', '2018-05-08', '2018-05-09','2018-05-10', '2018-05-11', '2018-05-14', '2018-05-15', '2018-05-16', '2018-05-17', '2018-05-18', '2018-05-21', '2018-05-22', '2018-05-23', '2018-05-24', '2018-05-25', '2018-05-29', '2018-05-30', '2018-05-31', '2018-06-01']
-        if 1 in predictions:
-            if 1 in y:
-                print(filename)
-        #    print(str(dates))
-                print(y)
-                print(str(predictions))
+        buy_prediction = 0
+        sell_prediction = 0
+        correct_buy_prediction = 0
+        correct_sell_prediction = 0
+        buy_accuracy = 0
+        sell_accuracy = 0
+        for i in range(len(predictions)):
+            if predictions[i] == 1:
+                buy_prediction += 1
+                if predictions[i] == y[i]:
+                    correct_buy_prediction +=1
+            if buy_prediction != 0 and correct_buy_prediction !=0:
+                buy_accuracy = correct_buy_prediction/buy_prediction
+            if predictions[i] == 0:
+                sell_prediction += 1
+                if predictions[i] == y[i]:
+                    correct_sell_prediction +=1
+            if sell_prediction != 0 and correct_sell_prediction !=0:
+                sell_accuracy = correct_sell_prediction/sell_prediction
+        if(buy_accuracy > .80 and sell_accuracy > .80):
+            symbol = filename.split('_')[0]
+            print(symbol + ' Accuracy: ' + str(buy_accuracy) + ' ' + str(sell_accuracy))
 
 def main():
-
     names = ["Logistic Regression", "Nearest Neighbors", "Decision Tree", "Random Forest", "Neural Net", "AdaBoost", "Naive Bayes", "QDA"]
     for name in names:
         print('Classifier: ' + name)
