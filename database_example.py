@@ -13,11 +13,11 @@ RAW_DATA_PATH = os.path.join('tmp')
 # stocks.createIndex( { symbol: symbol, date: date }, {unique: true} )
 
 
-def store_in_db(db, data):
-    stocks = []
-    stock = {}
+def store_in_db(db_stocks, data):
+    stock_list = []
     for line in data:
-
+        # Empty dict
+        stock = {}
         symbol = line[0]
         date = datetime.datetime.strptime(line[1], "%Y%m%d")
         open_price = line[2]
@@ -31,12 +31,12 @@ def store_in_db(db, data):
         stock['high_price'] = high_price
         stock['close_price'] = close_price
         stock['volume'] = volume
-        stocks.append(stock)
+        stock_list.append(stock)
 
-    collection = db['stocks']
-    collection.insert(stocks)
+    #print(str(stocks))
+    db_stocks.insert_many(stock_list)
 
-def fetch_data(db):
+def fetch_data(db_stocks):
     ''' Read stock data from all CSV files in RAW_DATA_PATH'''
     data = []
     if os.path.isdir(RAW_DATA_PATH) == False:
@@ -51,7 +51,7 @@ def fetch_data(db):
         with open(path) as f:
             for line in f:
                 data.append(line.strip().split(','))
-        store_in_db(db, data)
+        store_in_db(db_stocks, data)
     return data
 
 
@@ -59,8 +59,8 @@ def main():
     # client = MongoClient()
     client = MongoClient('localhost', 27017)
     db = client['test-database']
-    fetch_data(db)
     stocks = db.stocks
+    fetch_data(stocks)
     # db.stocks.remove({})
 
     # pprint.pprint(stocks.find({"date": "2017-01-04 00:00:00"}))
