@@ -14,7 +14,5 @@ stock ml for fun and profit
 
 ## How to run
 
-* Get data files
-* `python parse_data.py`
-* `python classifier.py`
-* `python rank_stocks.py`
+* Get data files (files with 'symbol', 'date', 'open', 'high', 'low', 'close','volume')
+* `python parse_data.py` # Output pandas dataframe to files split by year
