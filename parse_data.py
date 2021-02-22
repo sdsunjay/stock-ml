@@ -10,6 +10,7 @@ CLEAN_DATA_DIR = os.path.join(DATA_PATH, 'clean')
 CLEAN_DATA_PATH_TRAIN = os.path.join(CLEAN_DATA_DIR, 'train_data.txt')
 CLEAN_DATA_PATH_TEST = os.path.join(CLEAN_DATA_DIR, 'test_data.txt')
 CLEAN_TEST_DATA_DIR = os.path.join(CLEAN_DATA_DIR, 'test')
+COLUMNS = ['symbol', 'date', 'open', 'high', 'low', 'close','volume', 'label']
 
 MIN_TRAIN_DATE = '2013-01-01'
 MAX_TRAIN_DATE = '2018-12-31'
@@ -187,11 +188,11 @@ def create_df(features):
     """
     Create the DataFrame
     """
-    df = pd.DataFrame(features, columns = ['symbol', 'date', 'open', 'high', 'low', 'close','volume', 'label'])
+    df = pd.DataFrame(features, columns = COLUMNS)
     df = df[df.volume != 0]
     return df.sort_values(["date", "symbol"], ignore_index=True)
 
-def build_data(start_date, end_date, years):
+def build_data(years):
     """
     Create one CSV file for each year in years
     """
@@ -199,6 +200,8 @@ def build_data(start_date, end_date, years):
         # TODO: update start_date and end_date based on year
         data = fetch_data(year)
         print("Raw Data: %d" % (len(data)))
+        start_date = f"{year}-01-01"
+        end_date = f"{year}-12-31"
         features = make_features(data, start_date, end_date)
         print("Feature Data: %d" % (len(features)))
         if not features:
@@ -211,8 +214,8 @@ def main():
     start_date = MIN_TRAIN_DATE
     end_date = MAX_TRAIN_DATE
     print(f"Training with data from {start_date} to {end_date}")
-    years = TRAIN_YEARS
-    build_data(start_date, end_date, years)
+    years = ['2019']
+    build_data(years)
 
 
 if __name__ == '__main__':
