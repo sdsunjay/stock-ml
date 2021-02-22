@@ -14,32 +14,6 @@ import matplotlib
 import pylab
 matplotlib.rcParams.update({'font.size': 9})
 
-def rsiFunc(prices, n=14):
-    deltas = np.diff(prices)
-    seed = deltas[:n+1]
-    up = seed[seed>=0].sum()/n
-    down = -seed[seed<0].sum()/n
-    rs = up/down
-    rsi = np.zeros_like(prices)
-    rsi[:n] = 100. - 100./(1.+rs)
-
-    for i in range(n, len(prices)):
-        delta = deltas[i-1] # cause the diff is 1 shorter
-
-        if delta>0:
-            upval = delta
-            downval = 0.
-        else:
-            upval = 0.
-            downval = -delta
-
-        up = (up*(n-1) + upval)/n
-        down = (down*(n-1) + downval)/n
-
-        rs = up/down
-        rsi[i] = 100. - 100./(1.+rs)
-
-    return rsi
 
 def bytespdate2num(fmt, encoding='utf-8'):
     strconverter = mdates.strpdate2num(fmt)
@@ -48,54 +22,6 @@ def bytespdate2num(fmt, encoding='utf-8'):
         return strconverter(s)
     return bytesconverter
 
-
-def calculate_sma(values, window):
-    sum1 = 0
-    for i in range(window):
-        if float(values[i]) == 0.0:
-            continue
-        sum1+= float(values[i])
-    return float("{0:.2f}".format(sum1/window))
-
-def movingaverage_sunjay(values,window):
-    # print(values)
-    # print(window)
-    smas = []
-    weights = np.repeat(1.0, window)/window
-    print(len(values))
-    for i in range(len(values)):
-        if i+window > len(values):
-            break
-        sma = calculate_sma(values[i:i+window], window)
-        smas.append(sma)
-        i+=1
-    # smas = np.convolve(values, weights, 'valid')
-    # return smas # as a numpy array
-    return array(smas)
-
-def movingaverage(values,window):
-    weigths = np.repeat(1.0, window)/window
-    smas = np.convolve(values, weigths, 'valid')
-    return smas # as a numpy array
-
-def ExpMovingAverage(values, window):
-    weights = np.exp(np.linspace(-1., 0., window))
-    weights /= weights.sum()
-    print(str(window))
-    # print(str(values))
-    a =  np.convolve(values, weights, mode='full')[:len(values)]
-    a[:window] = a[window]
-    return a
-
-
-def computeMACD(x, slow=26, fast=12):
-    """
-    compute the MACD (Moving Average Convergence/Divergence) using a fast and slow exponential moving avg'
-    return value is emaslow, emafast, macd which are len(x) arrays
-    """
-    emaslow = ExpMovingAverage(list(map(float,x)),slow)
-    emafast = ExpMovingAverage(list(map(float,x)),fast)
-    return emaslow, emafast, emafast - emaslow
 
 def fetch_data_from_file(filename):
     data = []
@@ -109,7 +35,7 @@ def fetch_data_from_file(filename):
 def column(matrix, i):
     return [row[i] for row in matrix]
 
-def graphData(stock,MA1,MA2):
+def graphData(symbol, MA1, MA2):
 
     '''
         Use this to dynamically pull a stock:
@@ -130,7 +56,7 @@ def graphData(stock,MA1,MA2):
    #         print(str(e), 'failed to organize pulled data.')
    # except Exception as e:
    #     print(str(e), 'failed to pull pricing data')
-    stockData = fetch_data_from_file('data/raw/'+stock+'.csv')
+    stockData = fetch_data_from_file('data/raw/' + symbol + '.csv')
     date = column(stockData, 1)
     closep = column(stockData, 2)
     highp = column(stockData, 3)
@@ -148,8 +74,8 @@ def graphData(stock,MA1,MA2):
             newAr.append(appendLine)
             x+=1
 
-        Av1 = movingaverage(list(map(float,closep)), MA1)
-        Av2 = movingaverage(list(map(float,closep)), MA2)
+        Av1 = MovingAverage(list(map(float,closep)), MA1)
+        Av2 = MovingAverage(list(map(float,closep)), MA2)
         SP = len(date[MA2-1:])
         SP = int(SP)
         fig = plt.figure(facecolor='#07000d')
@@ -187,7 +113,7 @@ def graphData(stock,MA1,MA2):
         # ax0 = plt.subplot2grid((6,4), (0,0), sharex=ax1, rowspan=1, colspan=4, axisbg='#07000d')
         ax0 = plt.subplot2grid((6,4), (0,0), sharex=ax1, rowspan=1, colspan=4)
         rsi = rsiFunc(list(map(float,closep)))
-        print(str(rsi))
+        # print(str(rsi))
         rsiCol = '#c1f9f7'
         posCol = '#386d13'
         negCol = '#8f2020'
@@ -283,5 +209,5 @@ def graphData(stock,MA1,MA2):
         print("*** tb_lineno:", exc_traceback.tb_lineno)
 # while True:
     # stock = input('Stock to plot: ')
-stock = 'BABA'
+stock = 'AAPL'
 graphData(stock,10,50)

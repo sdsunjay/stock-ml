@@ -1,5 +1,5 @@
-from sklearn.externals import joblib
-from sklearn.linear_model import LogisticRegression, LinearRegression
+from sklearn.linear_model import LogisticRegression
+from sklearn import datasets, linear_model
 from sklearn.model_selection import cross_val_score, train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neighbors import KNeighborsClassifier
@@ -14,12 +14,12 @@ from sklearn.svm import SVC
 
 import parse_data
 import os.path
-from sklearn.externals import joblib
+import joblib
 
 def fetch_data_from_file(filename):
     ''' Read stock data from a CSV file'''
     data = []
-    # print('Reading from: ' + filename)
+    print('Reading from: ' + filename)
     with open(filename) as f:
         for line in f:
             data.append(line.split("\t"))
@@ -28,7 +28,9 @@ def fetch_data_from_file(filename):
 def read_test_files(clf):
     ''' Read test files in test dir and make predictions using classifier (clf) '''
     data = []
+    print('Reading files in: ' + parse_data.CLEAN_TEST_DATA_DIR)
     for filename in os.listdir(parse_data.CLEAN_TEST_DATA_DIR):
+        print('Reading: ' + filename)
         path = os.path.join(parse_data.CLEAN_TEST_DATA_DIR, filename)
         if os.path.isfile(path) == False:
             print('Error: Skipping ' + path)

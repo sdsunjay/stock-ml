@@ -4,12 +4,6 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 
-# import numpy as np
-# import matplotlib.pyplot as plt
-# from matplotlib.colors import ListedColormap
-# from sklearn.model_selection import train_test_split
-# from sklearn.preprocessing import StandardScaler
-# from sklearn.datasets import make_moons, make_circles, make_classification
 from sklearn.neural_network import MLPClassifier
 from sklearn.gaussian_process import GaussianProcessClassifier
 from sklearn.gaussian_process.kernels import RBF
@@ -20,7 +14,7 @@ from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
 
 import parse_data
 import os.path
-from sklearn.externals import joblib
+import joblib
 
 def train_classifier(name, classy, x, y):
     # Split into training and test
@@ -46,6 +40,7 @@ def main():
           print(parse_data.CLEAN_DATA_PATH_TRAIN + ' not found')
           return
     with open(parse_data.CLEAN_DATA_PATH_TRAIN, 'r') as file:
+        print('Reading from: ' + parse_data.CLEAN_DATA_PATH_TRAIN)
         for line in file:
             data.append(line.split("\t"))
 

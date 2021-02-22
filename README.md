@@ -11,3 +11,10 @@ stock ml for fun and profit
 | AdaBoost | 82.51 |
 | Naive Bayes | 82.17 |
 | QDA | 79.53 |
+
+## How to run
+
+* Get data files
+* `python parse_data.py`
+* `python classifier.py`
+* `python rank_stocks.py`

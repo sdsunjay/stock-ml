@@ -2,20 +2,20 @@ import os
 from os.path import basename
 
 DATA_PATH = os.path.join('data')
-RAW_DATA_PATH = os.path.join(DATA_PATH, 'raw')
+RAW_DATA_PATH = os.path.join(DATA_PATH, 'raw/csv')
 CLEAN_DATA_DIR = os.path.join(DATA_PATH, 'clean')
 CLEAN_DATA_PATH_TRAIN = os.path.join(CLEAN_DATA_DIR, 'train_data.txt')
 CLEAN_TEST_DATA_DIR = os.path.join(CLEAN_DATA_DIR, 'test')
 
-MIN_DATE = '2018-01-01'
-MAX_DATE = '2018-05-01'
+MIN_DATE = '2017-01-01'
+MAX_DATE = '2018-12-31'
 
 DATE_INDEX = 1
 CLOSING_INDEX = 2
 VOLUME_INDEX = 6
 N_DAYS = 14
 
-def fetch_data_from_file(filename):
+def fetch_test_data(filename):
     ''' Read stock data from a CSV file'''
     data = []
     with open(filename) as f:
@@ -25,9 +25,10 @@ def fetch_data_from_file(filename):
             data.append(line.strip().split(','))
     return data
 
-def fetch_data():
+def fetch_training_data():
     ''' Read stock data from all CSV files in RAW_DATA_PATH'''
     data = []
+    print('Reading Raw data path: ' + RAW_DATA_PATH)
     if os.path.isdir(RAW_DATA_PATH) == False:
         print(RAW_DATA_PATH + ' not found')
         return data
@@ -159,13 +160,14 @@ def build_test_data(start_date, end_date):
     if os.path.isdir(RAW_DATA_PATH) == False:
         print(RAW_DATA_PATH + ' not found')
         return data
+    print('Raw data path: ' + RAW_DATA_PATH)
     for filename in os.listdir(RAW_DATA_PATH):
         path = os.path.join(RAW_DATA_PATH, filename)
         if os.path.isfile(path) == False:
             continue
-        data = fetch_data_from_file(path)
+        data = fetch_test_data(path)
         # TEST
-        print("Raw Data: %d" % (len(data)))
+        # print("Raw Data: %d" % (len(data)))
 
         features = make_features(data, start_date, end_date)
 
@@ -176,7 +178,7 @@ def build_test_data(start_date, end_date):
 
 def build_train_data(start_date, end_date):
 
-    data = fetch_data()
+    data = fetch_training_data()
     # TEST
     print("Raw Data: %d" % (len(data)))
 
@@ -190,13 +192,15 @@ def build_train_data(start_date, end_date):
 def main(train, test):
 
     if train:
-        start_date = '2017-04-01'
-        end_date = '2018-04-30'
+        print('Training: ' )
+        start_date = MIN_DATE
+        end_date = MAX_DATE
         build_train_data(start_date, end_date)
 
-    elif test:
-        start_date = '2018-05-01'
-        end_date = '2018-06-01'
+    if test:
+        print('Testing: ' )
+        start_date = '2019-01-01'
+        end_date = '2019-03-01'
         build_test_data(start_date, end_date)
 
     print('Start Date: ' + start_date)
