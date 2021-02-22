@@ -1,17 +1,30 @@
 import os
 from os.path import basename
+from datetime import datetime, timedelta
+import hashlib
+import pandas as pd
 
 DATA_PATH = os.path.join('data')
-RAW_DATA_PATH = os.path.join(DATA_PATH, 'raw/csv')
+RAW_DATA_PATH = os.path.join(DATA_PATH, 'raw')
 CLEAN_DATA_DIR = os.path.join(DATA_PATH, 'clean')
 CLEAN_DATA_PATH_TRAIN = os.path.join(CLEAN_DATA_DIR, 'train_data.txt')
+CLEAN_DATA_PATH_TEST = os.path.join(CLEAN_DATA_DIR, 'test_data.txt')
 CLEAN_TEST_DATA_DIR = os.path.join(CLEAN_DATA_DIR, 'test')
 
-MIN_DATE = '2017-01-01'
-MAX_DATE = '2018-12-31'
+MIN_TRAIN_DATE = '2013-01-01'
+MAX_TRAIN_DATE = '2018-12-31'
+MIN_TEST_DATE = '2017-01-01'
+MAX_TEST_DATE = '2017-12-31'
+TRAIN_YEARS = ['2013','2014','2015','2016','2017','2018']
+# TEST_YEARS = ['2017']
+PERCENT_GAIN = 1.10
 
+SYMBOL_INDEX = 0
 DATE_INDEX = 1
-CLOSING_INDEX = 2
+OPEN_INDEX = 2
+HIGH_INDEX = 3
+LOW_INDEX = 4
+CLOSE_INDEX = 5
 VOLUME_INDEX = 6
 N_DAYS = 14
 
@@ -25,17 +38,20 @@ def fetch_test_data(filename):
             data.append(line.strip().split(','))
     return data
 
-def fetch_training_data():
-    ''' Read stock data from all CSV files in RAW_DATA_PATH'''
+def fetch_data(year):
+    ''' Read stock data from all TXT files in RAW_DATA_PATH'''
     data = []
-    print('Reading Raw data path: ' + RAW_DATA_PATH)
-    if os.path.isdir(RAW_DATA_PATH) == False:
-        print(RAW_DATA_PATH + ' not found')
+    year_dir = 'NASDAQ_' + year
+    dir_path = os.path.join(RAW_DATA_PATH, year_dir)
+    if os.path.isdir(dir_path) == False:
+        print(path + ' not found')
         return data
-    for filename in os.listdir(RAW_DATA_PATH):
-        path = os.path.join(RAW_DATA_PATH, filename)
+    print('Reading from: ' + dir_path)
+    for filename in os.listdir(dir_path):
+        path = os.path.join(dir_path, filename)
 
         if os.path.isfile(path) == False:
+            print('Error: Not a file' + path)
             continue
 
         with open(path) as f:
@@ -45,98 +61,72 @@ def fetch_training_data():
                 data.append(line.strip().split(','))
     return data
 
-def calculate_average_volume(data, index):
-    sum1 = 0.0
-    for i in range(N_DAYS):
-        if float(data[index - i][VOLUME_INDEX]) == 0.0:
-            continue
-        sum1+= float(data[index - i][VOLUME_INDEX])
-    # print('Average volume: ' + str(float(sum1/30)))
-    # print('Todays volume: ' + str(data[index][VOLUME_INDEX]))
-    # if todays volume is greater than average volume
-    # if float(data[index][VOLUME_INDEX]) > float(sum1/N_DAYS):
-    #     return 1
-    # else:
-    #    return 0
-    return float("{0:.2f}".format(sum1/N_DAYS))
-
-def calculate_rsi(data, index):
-    sum_gain = 0.0
-    sum_loss = 0.0
-    for i in range(N_DAYS):
-        if float(data[index - i][CLOSING_INDEX]) == 0.0:
-            continue
-        if float(data[index - (i+1)][CLOSING_INDEX]) == 0.0:
-            continue
-        temp = float(data[index - i][CLOSING_INDEX]) - float(data[index - (i+1)][CLOSING_INDEX])
-        if(temp < 0):
-            sum_loss+= abs(temp)
-        elif(temp > 0):
-            sum_gain+= temp
-    if sum_loss == 0:
-        sum_loss = 1.0
-    if sum_gain == 0:
-        sum_gain = 1.0
-    rs = sum_gain / sum_loss
-    rsi = 100 - (100/(1+rs))
-    return float("{0:.2f}".format(rsi))
-
-def calculate_simple_moving_average(data, index, n_days):
-    sum1 = 0.0
-    for i in range(n_days):
-        if float(data[index - i][CLOSING_INDEX]) == 0.0:
-            continue
-        sum1+= float(data[index - i][CLOSING_INDEX])
-    return float("{0:.2f}".format(sum1/n_days))
-
 def should_buy_stock(today_price, future_price):
-    if (float(today_price)*1.05) < float(future_price):
+    """
+        Check if todays price * PERCENT GAIN  is less than the future price
+        if so, its a buy
+    """
+    if (float(today_price) * PERCENT_GAIN) < float(future_price):
         return True
     return False
 
+def get_date(date_str):
+    # example start date in file is 20180102
+    return datetime.strptime(date_str, '%Y%m%d')
 
 def make_features(data, start_date, end_date):
+    """
+    Label the data and remove some data where volume is 0
+    """
     points = []
-
     # We know the data is sorted.
+    print(f"Making features from data from {start_date} to {end_date}")
+    flag = True
     for index in range(len(data)):
         point = data[index]
-
+        todays_date = get_date(point[DATE_INDEX])
         # TODO(eriq): We skip the first point, but if we didn't we
         # would have to be careful on the label for the first point.
-        if (point[DATE_INDEX] < start_date):
-            continue
-        if (point[DATE_INDEX] > end_date):
-            continue
+        # example start date: '2013-01-01'
+        if (todays_date < datetime.strptime(start_date, "%Y-%m-%d")):
+            print('Error: before start_date')
+            print(str(point))
+            break
+        if (todays_date > datetime.strptime(end_date, "%Y-%m-%d")):
+            print('Error: past end_date')
+            print(str(point))
+            break
         if (int(point[VOLUME_INDEX]) == 0):
+            # print('Error: Volume is 0')
             continue
-
+        future_date = todays_date + timedelta(days=N_DAYS)
         label = 0
-        if index + N_DAYS < len(data):
+        if (future_date > datetime.strptime(end_date, "%Y-%m-%d")):
+            if(flag):
+                print(f"Todays date of {todays_date} + {N_DAYS} days ({future_date}) is greater than {end_date}")
+                flag = False
+            continue
+
+        if index + N_DAYS < len(data) and data[index + N_DAYS][OPEN_INDEX]:
             # price in the future
-            future_price = data[index + N_DAYS][CLOSING_INDEX]
-        else:
+            future_price = data[index + N_DAYS][OPEN_INDEX]
+        if point[OPEN_INDEX]:
+            today_price = point[OPEN_INDEX]
+        if future_price and today_price:
+            if should_buy_stock(today_price, future_price):
+                label = 1
+
+        features = [point[SYMBOL_INDEX], todays_date,
+                float(point[OPEN_INDEX]), float(point[HIGH_INDEX]),
+                float(point[LOW_INDEX]), float(point[CLOSE_INDEX]),
+                float(point[VOLUME_INDEX]), label]
+        if (features[2] <= 0.0 or features[3] <= 0.0 or features[4] <= 0.0 or features[5] <= 0.0):
             continue
-
-        today_price = data[index][CLOSING_INDEX]
-
-        if should_buy_stock(today_price, future_price):
-            label = 1
-        ten_day_ma = calculate_simple_moving_average(data, index, 10)
-        twenty_five_day_ma = calculate_simple_moving_average(data, index, 25)
-        n_day_momentum = float("{0:.2f}".format(float(data[index][CLOSING_INDEX]) - float(data[index - N_DAYS][CLOSING_INDEX])))
-        rsi = calculate_rsi(data, index)
-        # volume = calculate_average_volume(data, index)
-        features = [float(point[CLOSING_INDEX]), float(point[VOLUME_INDEX]), ten_day_ma, twenty_five_day_ma, n_day_momentum, rsi, label]
-
-        if (features[0] <= 0.0):
-            continue
-
         points.append(features)
-
     return points
 
-def output_to_file(features, train, test, symbol):
+# can be deleted
+def output_csv_to_file(features, train, test, symbol):
 
     # TEST
     print("Sucessfully Featureized: %d" % (len(features)))
@@ -155,6 +145,18 @@ def output_to_file(features, train, test, symbol):
     with open(path, 'w') as file:
         file.write('\n'.join(['\t'.join([str(part) for part in point]) for point in features]))
 
+# for training use CLEAN_DATA_PATH_TRAIN
+# for testing use CLEAN_DATA_PATH_TEST
+def output_to_file(features, path):
+
+    print("Sucessfully Featureized: %d" % (len(features)))
+
+    print('Writing to: ' + path)
+    with open(path, 'w') as file:
+        file.write('\n'.join(['\t'.join([str(part) for part in point]) for point in features]))
+
+# only used if files are CSVs
+# can be deleted
 def build_test_data(start_date, end_date):
 
     if os.path.isdir(RAW_DATA_PATH) == False:
@@ -166,8 +168,6 @@ def build_test_data(start_date, end_date):
         if os.path.isfile(path) == False:
             continue
         data = fetch_test_data(path)
-        # TEST
-        # print("Raw Data: %d" % (len(data)))
 
         features = make_features(data, start_date, end_date)
 
@@ -176,38 +176,44 @@ def build_test_data(start_date, end_date):
         else:
             output_to_file(features, False, True, filename.split('.')[0])
 
-def build_train_data(start_date, end_date):
+def output_to_csv(df, output_path):
+    """
+    Output dataframe to CSV
+    """
+    print(f"Outputting dataframe to {output_path}")
+    df.to_csv(output_path, index=False, encoding='utf-8')
 
-    data = fetch_training_data()
-    # TEST
-    print("Raw Data: %d" % (len(data)))
+def create_df(features):
+    """
+    Create the DataFrame
+    """
+    df = pd.DataFrame(features, columns = ['symbol', 'date', 'open', 'high', 'low', 'close','volume', 'label'])
+    df = df[df.volume != 0]
+    return df.sort_values(["date", "symbol"], ignore_index=True)
 
-    features = make_features(data, start_date, end_date)
+def build_data(start_date, end_date, years):
+    """
+    Create one CSV file for each year in years
+    """
+    for year in years:
+        # TODO: update start_date and end_date based on year
+        data = fetch_data(year)
+        print("Raw Data: %d" % (len(data)))
+        features = make_features(data, start_date, end_date)
+        print("Feature Data: %d" % (len(features)))
+        if not features:
+            print('Error: features list is empty\n')
+        else:
+            df = create_df(features)
+            output_to_csv(df, "NASDAQ_" + year + ".csv")
 
-    if not features:
-        print('Error: features list is empty\n')
-    else:
-        output_to_file(features, True, False, '')
-
-def main(train, test):
-
-    if train:
-        print('Training: ' )
-        start_date = MIN_DATE
-        end_date = MAX_DATE
-        build_train_data(start_date, end_date)
-
-    if test:
-        print('Testing: ' )
-        start_date = '2018-05-01'
-        end_date = '2018-06-01'
-        build_test_data(start_date, end_date)
-
-    print('Start Date: ' + start_date)
-    print('End Date: ' + end_date)
+def main():
+    start_date = MIN_TRAIN_DATE
+    end_date = MAX_TRAIN_DATE
+    print(f"Training with data from {start_date} to {end_date}")
+    years = TRAIN_YEARS
+    build_data(start_date, end_date, years)
 
 
 if __name__ == '__main__':
-    train = True
-    test = True
-    main(train, test)
+    main()
