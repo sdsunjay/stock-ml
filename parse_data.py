@@ -199,8 +199,8 @@ def main(train, test):
 
     if test:
         print('Testing: ' )
-        start_date = '2019-01-01'
-        end_date = '2019-03-01'
+        start_date = '2018-05-01'
+        end_date = '2018-06-01'
         build_test_data(start_date, end_date)
 
     print('Start Date: ' + start_date)
@@ -208,6 +208,6 @@ def main(train, test):
 
 
 if __name__ == '__main__':
-    train = False
+    train = True
     test = True
     main(train, test)
