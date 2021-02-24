@@ -3,6 +3,8 @@ from os.path import basename
 from datetime import datetime, timedelta
 import hashlib
 import pandas as pd
+import yfinance as yf
+import numpy as np
 
 DATA_PATH = os.path.join('data')
 RAW_DATA_PATH = os.path.join(DATA_PATH, 'raw')
@@ -11,12 +13,16 @@ CLEAN_DATA_PATH_TRAIN = os.path.join(CLEAN_DATA_DIR, 'train_data.txt')
 CLEAN_DATA_PATH_TEST = os.path.join(CLEAN_DATA_DIR, 'test_data.txt')
 CLEAN_TEST_DATA_DIR = os.path.join(CLEAN_DATA_DIR, 'test')
 COLUMNS = ['symbol', 'date', 'open', 'high', 'low', 'close','volume', 'label']
+INFO_COLUMNS = ['symbol', 'sector', 'industry']
 
-MIN_TRAIN_DATE = '2013-01-01'
-MAX_TRAIN_DATE = '2018-12-31'
+# MIN_TRAIN_DATE = '2013-01-01'
+# MAX_TRAIN_DATE = '2018-12-31'
+MIN_TRAIN_DATE = '2019-01-01'
+MAX_TRAIN_DATE = '2019-12-31'
 MIN_TEST_DATE = '2017-01-01'
 MAX_TEST_DATE = '2017-12-31'
 TRAIN_YEARS = ['2013','2014','2015','2016','2017','2018']
+BATCH_SIZE = 100
 # TEST_YEARS = ['2017']
 PERCENT_GAIN = 1.10
 
@@ -28,6 +34,106 @@ LOW_INDEX = 4
 CLOSE_INDEX = 5
 VOLUME_INDEX = 6
 N_DAYS = 14
+
+
+def get_data_for_symbols(symbols):
+    data = yf.download(  # or pdr.get_data_yahoo(...
+        # tickers list or string as well
+        tickers = symbols,
+
+        # use "period" instead of start/end
+        # valid periods: 1d,5d,1mo,3mo,6mo,1y,2y,5y,10y,ytd,max
+        # (optional, default is '1mo')
+        period = "1d",
+
+        # fetch data by interval (including intraday if period < 60 days)
+        # valid intervals: 1m,2m,5m,15m,30m,60m,90m,1h,1d,5d,1wk,1mo,3mo
+        # (optional, default is '1d')
+        interval = "1d",
+
+        # group by ticker (to access via data['SPY'])
+        # (optional, default is 'column')
+        group_by = 'ticker',
+
+        # adjust all OHLC automatically
+        # (optional, default is False)
+        auto_adjust = True,
+
+        # download pre/post regular market hours data
+        # (optional, default is False)
+        prepost = False,
+
+        # use threads for mass downloading? (True/False/Integer)
+        # (optional, default is True)
+        threads = True,
+
+        # proxy URL scheme use use when downloading?
+        # (optional, default is None)
+        proxy = None
+    )
+
+def help_get_sector_data(symbol, ticker):
+    try:
+        # access each ticker using (example)
+        info = ticker.info
+        sector = info['sector']
+        industry = info['industry']
+        # print(f"Symbol: {symbol} Sector: {sector}")
+        return [symbol, sector, industry]
+    except:
+        # print("Unexpected error: ", sys.exc_info()[0])
+        print(f"Unexpected error: {symbol}")
+        return []
+
+    # yf_symbol.history(period="5y")
+    # goes to 2016 to 2021
+    # we just need 2019, 2020, 2021 up to feb 22
+    # will need to cut prices to 2 digits
+    # add sector
+    # return data
+#                  Open        High         Low       Close     Volume  Dividends  Stock Splits
+#Date
+#2016-02-23   22.415623   22.438875   21.985448   22.018002  127770400        0.0           0.0
+#2016-02-24   21.852907   22.410971   21.699438   22.345863  145022800        0.0           0.0
+#2016-02-25   22.334236   22.499331   22.148214   22.499331  110330800        0.0           0.0
+#2016-02-26   22.601640   22.792312   22.457474   22.534208  115964400        0.0           0.0
+#2016-02-29   22.522586   22.841149   22.473756   22.483057  140865200        0.0           0.0
+
+def chunks(l, n):
+    n = max(1, n)
+    return (l[i:i+n] for i in range(0, len(l), n))
+
+def get_sector_data(symbols):
+    list_of_lists = []
+    batches = chunks(symbols, BATCH_SIZE)
+    for batch in batches:
+        new_batch = ' '.join(batch)
+        # print(f"Batch of symbols: {batch}")
+        tickers = yf.Tickers(new_batch)
+        # ^ returns a named tuple of Ticker objects
+        # print(f"New batch of symbols: {new_batch}")
+        # print(f"tickers: {tickers}")
+        ordered_dict = tickers.tickers._asdict()
+        for symbol, ticker in ordered_dict.items():
+            # print(key)
+            # print(value)
+            info = help_get_sector_data(symbol, ticker)
+            # print(info)
+            if info:
+                list_of_lists.append(info)
+        # for symbol in batch:
+        #    info = help_get_sector_data(tickers, symbol.upper())
+
+    # Create the pandas DataFrame
+    return pd.DataFrame(list_of_lists, columns = INFO_COLUMNS)
+
+    # df = df.T
+    # print(f"Type: {type(df)}")
+    # print(f"Length: {len(df)}")
+    # result = df.head(10)
+    # print("First 10 rows of the DataFrame:")
+    # print(result)
+    # return df
 
 def fetch_test_data(filename):
     ''' Read stock data from a CSV file'''
@@ -196,6 +302,7 @@ def build_data(years):
     """
     Create one CSV file for each year in years
     """
+    list_of_df = []
     for year in years:
         # TODO: update start_date and end_date based on year
         data = fetch_data(year)
@@ -207,16 +314,31 @@ def build_data(years):
         if not features:
             print('Error: features list is empty\n')
         else:
-            df = create_df(features)
-            output_to_csv(df, "NASDAQ_" + year + ".csv")
+            list_of_df.append(create_df(features))
+    return list_of_df
+
+def first():
+    years = ['2019']
+    print(f"Getting data for the following years: {years}")
+    list_of_df = build_data(years)
+    df = pd.concat(list_of_df)
+    df = df.dropna()
+    return df
+    # print(df.head())
 
 def main():
-    start_date = MIN_TRAIN_DATE
-    end_date = MAX_TRAIN_DATE
-    print(f"Training with data from {start_date} to {end_date}")
-    years = ['2019']
-    build_data(years)
-
+    df = first()
+    symbols = df.symbol.unique()
+    print(f"Read {len(df.index)} rows ({len(symbols)} symbols) of data")
+    # used for testing
+    # symbols = ['aapl', 'baba', 'msft', 'lulu', 'dkng', 'pltr', 'pypl', 'gme']
+    df1 = get_sector_data(symbols)
+    print(df1.head())
+    output_to_csv(df1, "NASDAQ_2019_INFO.csv")
+    # TODO: Check if this is right, axis might be wrong
+    result = pd.concat([df, df1], axis=1, join="inner")
+    # TODO: fix this!
+    output_to_csv(result, "NASDAQ_2019.csv")
 
 if __name__ == '__main__':
     main()
