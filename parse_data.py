@@ -5,6 +5,9 @@ import hashlib
 import pandas as pd
 import yfinance as yf
 import numpy as np
+from multiprocessing import Pool
+import time
+from all_symbols import read_all_symbols
 
 DATA_PATH = os.path.join('data')
 RAW_DATA_PATH = os.path.join(DATA_PATH, 'raw')
@@ -22,9 +25,11 @@ MAX_TRAIN_DATE = '2019-12-31'
 MIN_TEST_DATE = '2017-01-01'
 MAX_TEST_DATE = '2017-12-31'
 TRAIN_YEARS = ['2013','2014','2015','2016','2017','2018']
-BATCH_SIZE = 100
+BATCH_SIZE = 200
 # TEST_YEARS = ['2017']
-PERCENT_GAIN = 1.10
+TEN_PERCENT_GAIN = 1.10
+TWENTY_PERCENT_GAIN = 1.20
+FOURTY_PERCENT_GAIN = 1.40
 
 SYMBOL_INDEX = 0
 DATE_INDEX = 1
@@ -33,8 +38,8 @@ HIGH_INDEX = 3
 LOW_INDEX = 4
 CLOSE_INDEX = 5
 VOLUME_INDEX = 6
-N_DAYS = 14
-
+N_DAYS = 5
+NUM_PROCESSES = 2
 
 def get_data_for_symbols(symbols):
     data = yf.download(  # or pdr.get_data_yahoo(...
@@ -73,16 +78,14 @@ def get_data_for_symbols(symbols):
     )
 
 def help_get_sector_data(symbol, ticker):
+    '''access sector and industry info on each ticker'''
     try:
-        # access each ticker using (example)
         info = ticker.info
-        sector = info['sector']
-        industry = info['industry']
-        # print(f"Symbol: {symbol} Sector: {sector}")
-        return [symbol, sector, industry]
+        time.sleep(1)
+        return [symbol, info['sector'], info['industry']]
     except:
-        # print("Unexpected error: ", sys.exc_info()[0])
         print(f"Unexpected error: {symbol}")
+        time.sleep(60)
         return []
 
     # yf_symbol.history(period="5y")
@@ -103,37 +106,53 @@ def chunks(l, n):
     n = max(1, n)
     return (l[i:i+n] for i in range(0, len(l), n))
 
+def split_list_in_four(symbols):
+    '''Split symbols list into batches and get sector and industry info foreach batch from yahoo finance API using separate threads'''
+    p = Pool(processes=NUM_PROCESSES)
+    symbol_batches = np.array_split(symbols, NUM_PROCESSES)
+    pool_results = p.map(get_sector_data, symbol_batches)
+    p.close()
+    p.join()
+    # merging parts processed by different processes
+    df = pd.concat(pool_results, ignore_index=True)
+    # print(df.head())
+    return df
+
 def get_sector_data(symbols):
+    start_time = datetime.now()
+    print(f"Getting sector data for {len(symbols)} symbols at {start_time}")
     list_of_lists = []
-    batches = chunks(symbols, BATCH_SIZE)
-    for batch in batches:
-        new_batch = ' '.join(batch)
-        # print(f"Batch of symbols: {batch}")
-        tickers = yf.Tickers(new_batch)
+    fail_count = 0
+    symbol_batches = np.array_split(symbols, 100)
+    symbol_count = 0
+    for symbol_batch in symbol_batches:
+        symbols_string = ' '.join(symbol_batch)
+        tickers = yf.Tickers(symbols_string)
         # ^ returns a named tuple of Ticker objects
-        # print(f"New batch of symbols: {new_batch}")
-        # print(f"tickers: {tickers}")
         ordered_dict = tickers.tickers._asdict()
         for symbol, ticker in ordered_dict.items():
-            # print(key)
-            # print(value)
             info = help_get_sector_data(symbol, ticker)
-            # print(info)
             if info:
                 list_of_lists.append(info)
-        # for symbol in batch:
-        #    info = help_get_sector_data(tickers, symbol.upper())
+            else:
+                fail_count +=1
+            if fail_count > 10 and fail_count % 5 == 0:
+                print(f"Fail Count: {fail_count}")
+                time.sleep(int(fail_count))
+        time.sleep(60)
+        symbol_count +=1
+        if(symbol_count % 10 == 0):
+            print(f"Symbols processed: {symbol_count}")
+
 
     # Create the pandas DataFrame
-    return pd.DataFrame(list_of_lists, columns = INFO_COLUMNS)
-
-    # df = df.T
-    # print(f"Type: {type(df)}")
-    # print(f"Length: {len(df)}")
-    # result = df.head(10)
-    # print("First 10 rows of the DataFrame:")
-    # print(result)
-    # return df
+    df = pd.DataFrame(list_of_lists, columns = INFO_COLUMNS)
+    # df.set_index('symbol')
+    print(f"{fail_count} failed tickers")
+    end_time = datetime.now()
+    find_duration(start_time, end_time, year)
+    time.sleep(60)
+    return df
 
 def fetch_test_data(filename):
     ''' Read stock data from a CSV file'''
@@ -151,9 +170,9 @@ def fetch_data(year):
     year_dir = 'NASDAQ_' + year
     dir_path = os.path.join(RAW_DATA_PATH, year_dir)
     if os.path.isdir(dir_path) == False:
-        print(path + ' not found')
+        print(f"{dir_path} not found")
         return data
-    print('Reading from: ' + dir_path)
+    print(f"Reading from: {dir_path} directory")
     for filename in os.listdir(dir_path):
         path = os.path.join(dir_path, filename)
 
@@ -168,12 +187,15 @@ def fetch_data(year):
                 data.append(line.strip().split(','))
     return data
 
-def should_buy_stock(today_price, future_price):
+def should_buy_stock(today_price, future_price, percent_gain):
     """
-        Check if todays price * PERCENT GAIN  is less than the future price
+        Check if future price is greater than todays price * percent gain
+        Example: todays price is $10. Future price is $13. Should return true
+        because 10 * 1.2 = 12. 13 > 12. We want to buy this stock today because
+        in the future it will be higher than the percent_gain
         if so, its a buy
     """
-    if (float(today_price) * PERCENT_GAIN) < float(future_price):
+    if float(future_price) >= (float(today_price) * percent_gain):
         return True
     return False
 
@@ -192,15 +214,19 @@ def make_features(data, start_date, end_date):
     for index in range(len(data)):
         point = data[index]
         todays_date = get_date(point[DATE_INDEX])
+
+        # todays_date = str(todays_date).replace("2013","2099")
+        # todays_date = datetime.fromisoformat(todays_date)
+        # print(f"Todays date: {todays_date}")
         # TODO(eriq): We skip the first point, but if we didn't we
         # would have to be careful on the label for the first point.
         # example start date: '2013-01-01'
         if (todays_date < datetime.strptime(start_date, "%Y-%m-%d")):
-            print('Error: before start_date')
+            print(f"Error: before start_date: {start_date}")
             print(str(point))
             break
         if (todays_date > datetime.strptime(end_date, "%Y-%m-%d")):
-            print('Error: past end_date')
+            print(f"Error: past end_date: {end_date}")
             print(str(point))
             break
         if (int(point[VOLUME_INDEX]) == 0):
@@ -208,11 +234,11 @@ def make_features(data, start_date, end_date):
             continue
         future_date = todays_date + timedelta(days=N_DAYS)
         label = 0
-        if (future_date > datetime.strptime(end_date, "%Y-%m-%d")):
-            if(flag):
-                print(f"Todays date of {todays_date} + {N_DAYS} days ({future_date}) is greater than {end_date}")
-                flag = False
-            continue
+        # if (future_date > datetime.strptime(end_date, "%Y-%m-%d")):
+        #    if(flag):
+        #        print(f"Todays date of {todays_date} + {N_DAYS} days ({future_date}) is greater than {end_date}")
+        #        flag = False
+            # continue
 
         if index + N_DAYS < len(data) and data[index + N_DAYS][OPEN_INDEX]:
             # price in the future
@@ -220,8 +246,14 @@ def make_features(data, start_date, end_date):
         if point[OPEN_INDEX]:
             today_price = point[OPEN_INDEX]
         if future_price and today_price:
-            if should_buy_stock(today_price, future_price):
+            if should_buy_stock(today_price, future_price, FOURTY_PERCENT_GAIN):
+                label = 3
+            elif should_buy_stock(today_price, future_price, TWENTY_PERCENT_GAIN):
+                label = 2
+            elif should_buy_stock(today_price, future_price, TEN_PERCENT_GAIN):
                 label = 1
+            else:
+                label = 0
 
         features = [point[SYMBOL_INDEX], todays_date,
                 float(point[OPEN_INDEX]), float(point[HIGH_INDEX]),
@@ -283,12 +315,16 @@ def build_test_data(start_date, end_date):
         else:
             output_to_file(features, False, True, filename.split('.')[0])
 
-def output_to_csv(df, output_path):
+def output_to_csv(df, year):
     """
     Output dataframe to CSV
     """
+    if not os.path.exists(CLEAN_DATA_DIR):
+        os.makedirs(CLEAN_DATA_DIR)
+    filename = f"NASDAQ_{year}.csv"
+    output_path = os.path.join(CLEAN_DATA_DIR, filename)
     print(f"Outputting dataframe to {output_path}")
-    df.to_csv(output_path, index=False, encoding='utf-8')
+    df.to_csv(output_path, encoding='utf-8', index=False)
 
 def create_df(features):
     """
@@ -296,17 +332,39 @@ def create_df(features):
     """
     df = pd.DataFrame(features, columns = COLUMNS)
     df = df[df.volume != 0]
-    return df.sort_values(["date", "symbol"], ignore_index=True)
+    df.set_index("date")
+    return df.sort_values(["date", "symbol"], ignore_index=False)
+
+def get_broken_symbols_from_file(filename):
+    with open(filename) as symbols_file:
+        result = symbols_file.read().splitlines()
+    print(f"Read {len(result)} broken symbols")
+    return result
+
+def get_and_output_sector():
+    dir_path = "data/clean/symbols"
+    symbols = read_all_symbols(dir_path)
+    # filename = "error_symbols.txt"
+    # list_of_broken_symbols = get_broken_symbols_from_file(filename)
+    # clean_symbols = [ x for x in symbols if x not in list_of_broken_symbols ]
+    # print(f"Number of symbols in list after cleaning: {len(clean_symbols)}")
+    df = get_sector_data(symbols)
+    # df = split_list_in_four(symbols)
+    output_to_csv(df, 'all_years_info')
+
+def print_to_file(year, symbols_list):
+    filename = f"SYMBOLS_{year}.csv"
+    with open(filename, 'w') as f:
+        f.writelines("%s," % symbol for symbol in symbols_list)
 
 def build_data(years):
     """
     Create one CSV file for each year in years
     """
-    list_of_df = []
     for year in years:
-        # TODO: update start_date and end_date based on year
+        start_time = datetime.now()
         data = fetch_data(year)
-        print("Raw Data: %d" % (len(data)))
+        print(f"{year} Raw Data: {len(data)}")
         start_date = f"{year}-01-01"
         end_date = f"{year}-12-31"
         features = make_features(data, start_date, end_date)
@@ -314,31 +372,28 @@ def build_data(years):
         if not features:
             print('Error: features list is empty\n')
         else:
-            list_of_df.append(create_df(features))
-    return list_of_df
+            df = create_df(features)
+            symbols = df.symbol.unique()
+            print(f"Read {len(df.index)} rows ({len(symbols)} symbols) of {year} data")
+            # output_to_csv(df, year)
+        end_time = datetime.now()
+        find_duration(start_time, end_time, year)
 
-def first():
-    years = ['2019']
-    print(f"Getting data for the following years: {years}")
-    list_of_df = build_data(years)
-    df = pd.concat(list_of_df)
-    df = df.dropna()
-    return df
-    # print(df.head())
+def find_duration(start_time, end_time, year):
+    duration = end_time - start_time # For build-in functions
+    duration_in_s = duration.total_seconds() # Total number of seconds between dates
+    print(f"{year} total time {duration_in_s}")
+
 
 def main():
-    df = first()
-    symbols = df.symbol.unique()
-    print(f"Read {len(df.index)} rows ({len(symbols)} symbols) of data")
-    # used for testing
-    # symbols = ['aapl', 'baba', 'msft', 'lulu', 'dkng', 'pltr', 'pypl', 'gme']
-    df1 = get_sector_data(symbols)
-    print(df1.head())
-    output_to_csv(df1, "NASDAQ_2019_INFO.csv")
-    # TODO: Check if this is right, axis might be wrong
-    result = pd.concat([df, df1], axis=1, join="inner")
-    # TODO: fix this!
-    output_to_csv(result, "NASDAQ_2019.csv")
+    start_time = datetime.now()
+    years = ['2013', '2014', '2015', '2016', '2017', '2018', '2019']
+    # years = ['2013']
+    # print(f"Getting data for the following years: {years}")
+    get_and_output_sector()
+    # build_data(years)
+    end_time = datetime.now()
+    find_duration(start_time, end_time, 'All years')
 
 if __name__ == '__main__':
     main()
