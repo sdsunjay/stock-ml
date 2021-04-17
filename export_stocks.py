@@ -2,19 +2,22 @@
 import pandas as pd
 from alpha_vantage.timeseries import TimeSeries
 from datetime import datetime
-from os import path
+from os import path, SEEK_END
 from time import sleep
+import sys
+import traceback
 
 # Add your Alpha Vantange API Key
-API_KEY_ALPHAVANTAGE = ''
-SYMBOLS_PATH = './data/clean/symbols'
+from config import API_KEY_ALPHAVANTAGE
+
+SYMBOLS_PATH = './new_symbols'
 
 # import warnings
 # warnings.simplefilter("always")
 
 # ----------------------------------------------------- EXPORT -----------------------------------------------------
 def export(df_stock, s_ticker):
-    s_filename = f"{s_ticker}.csv"
+    s_filename = path.join(SYMBOLS_PATH, f"{s_ticker}.csv")
     if df_stock.empty:
         print("No data loaded yet to export.")
         return
@@ -23,17 +26,27 @@ def export(df_stock, s_ticker):
 
 
 def read_all_symbols(file_path):
-    if path.isfile(file_path) == False:
-        print('Error: Not a file' + file_path)
-        import sys
-        sys.exit(1)
+    ''' Read all symbols from a file
+    Symbols all appear on one line and are comma delimited
+    '''
+    try:
+        if path.isfile(file_path) == False:
+            print('Error: Not a file' + file_path)
+            return []
 
-    with open(file_path) as f:
-        print(f"Reading symbols from the following file: {file_path}")
-        line = f.readline()
-        all_symbols = "".join(line.split()).split(',')
-    print(f"Number of symbols read: {len(all_symbols)}")
-    return all_symbols
+        with open(file_path) as f:
+            print(f"Reading symbols from the following file: {file_path}")
+            line = f.readline()
+            all_symbols = "".join(line.split()).split(',')
+        print(f"Number of symbols read: {len(all_symbols)}")
+        return all_symbols
+    except:
+        print("Unexpected error in all symbols:", sys.exc_info()[0])
+        print(f"Error with symbol: {s_ticker}")
+        print(traceback.format_exc())
+        print(sys.exc_info()[2])
+        print("Unexpected error:", sys.exc_info()[0])
+        return []
 
 
 # pylint: disable=too-many-branches
@@ -41,7 +54,6 @@ def main():
     """
     Read through a list of tickers and get the daily price and then output each ticker to a file
     """
-    ts = TimeSeries(key=cfg.API_KEY_ALPHAVANTAGE, output_format='pandas')
     file_path = path.join(SYMBOLS_PATH, 'final_all_symbols.csv')
     s_tickers = read_all_symbols(file_path)
 
@@ -68,9 +80,12 @@ def remove_tickers(s_tickers, removal_list):
 
 def start_stocks(s_tickers, existing_symbols_list, bad_symbols_list):
     ticker_count = 0
+    ts = TimeSeries(key=API_KEY_ALPHAVANTAGE, output_format='pandas')
+    print(f"Total number of symbols left: {len(s_tickers)}")
     for s_ticker in s_tickers:
-        if ticker_count >= 499:
-            print('quitting!')
+        ticker_count += 1
+        if ticker_count >= 500:
+            print('Quitting!')
             print(f"Last symbol: {s_ticker}")
             break
         df_stock = pd.DataFrame()
@@ -79,31 +94,37 @@ def start_stocks(s_tickers, existing_symbols_list, bad_symbols_list):
         try:
             df_stock, d_stock_metadata = ts.get_daily_adjusted(symbol=s_ticker, outputsize='full')
             df_stock.sort_index(ascending=True, inplace=True)
-            ticker_count += 1
-            print(f"Metadata: {d_stock_metadata}")
-            #    print (f"Error {output_path} already exists exists: {file_exists}")
             export(df_stock, s_ticker)
             existing_symbols_list.append(s_ticker)
-            break
-            if ticker_count % 20 == 0:
+            if ticker_count % 50 == 0:
                 print(f"{str(ticker_count)} Ticker: {s_ticker}")
-                print("Sleeping for 20 seconds")
-                sleep(20)
+                print("Sleeping for 3 seconds")
+                sleep(3)
         except ValueError as error:
-            if str(error) not in 'Our standard API call frequency is 5 calls per minute and 500 calls per day':
-                bad_symbols.append(s_ticker)
-            print(str(error))
+            if '500 calls per day' in str(error):
+                print(f"Error: {error}\nQuitting!")
+                print(f"{str(ticker_count)} tickers read.\nLast symbol: {s_ticker}")
+                break
+            bad_symbols_list.append(s_ticker)
             print(f"Error with symbol: {s_ticker}")
-            import sys
+        except NameError as error:
+            print("Name error:", sys.exc_info()[0])
+            print(f"Error with symbol: {s_ticker}")
+            print(traceback.format_exc())
+            print(sys.exc_info()[2])
             print("Unexpected error:", sys.exc_info()[0])
         except:
-            import sys
+            print(f"{str(ticker_count)} tickers read.\nLast symbol: {s_ticker}")
             print("Unexpected error:", sys.exc_info()[0])
             print(f"Error with symbol: {s_ticker}")
-        sleep(20)
+            print(traceback.format_exc())
+            print(sys.exc_info()[2])
+            print("Unexpected error:", sys.exc_info()[0])
+            break
+        sleep(16)
 
     date_time_obj = datetime.now()
-    date_string = date_time_obj.strftime("%d-%b-%Y (%H:%M:%S.%f)")
+    date_string = date_time_obj.strftime("%d-%m-%Y__%H:%M")
     file_path = path.join(SYMBOLS_PATH, f"{date_string}_bad_symbols.csv")
     output_list(bad_symbols_list, file_path)
     file_path = path.join(SYMBOLS_PATH, f"{date_string}_existing_symbols.csv")
@@ -115,7 +136,9 @@ def output_list(symbols_list, filename):
     with open(filename, 'w+') as filehandle:
         for symbol in symbols_list:
             filehandle.write('%s,' % symbol)
-
+    with open(filename, 'rb+') as filehandle:
+        filehandle.seek(-1, SEEK_END)
+        filehandle.truncate()
 
 if __name__ == "__main__":
     main()
