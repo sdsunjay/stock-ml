@@ -1,0 +1,2 @@
+# move outside of stock-ml directory first
+rsync -avL --progress --exclude '*.git' --exclude 'stock-ml/models/*' --exclude 'stock-ml/ta/*' --exclude '*.pkl' --exclude 'stock-ml/data/' --exclude  --exclude 'stock-ml/.git' --exclude 'stock-ml/__pycache__' --exclude 'env/' --exclude 'stock-ml/new_symbols/data/*' --exclude '.idea/' --exclude '.Python' --exclude '*.txt' -e "ssh -i /Users/sunjay.dhama/cpe/stock_key_pair.pem" /Users/sunjay.dhama/cpe/stock-ml ec2-user@54.88.128.38:~/stock-ml
