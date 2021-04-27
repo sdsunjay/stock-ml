@@ -17,7 +17,8 @@ SYMBOLS_PATH = './new_symbols'
 
 # ----------------------------------------------------- EXPORT -----------------------------------------------------
 def export(df_stock, s_ticker):
-    s_filename = path.join(SYMBOLS_PATH, f"{s_ticker}.csv")
+    full_path = path.join(SYMBOLS_PATH, "data/")
+    s_filename = path.join(full_path, f"{s_ticker}.csv")
     if df_stock.empty:
         print("No data loaded yet to export.")
         return
@@ -64,12 +65,19 @@ def main():
     existing_symbols_list = read_all_symbols(file_path)
 
     if len(s_tickers) != 0 and len(bad_symbols_list) != 0 and existing_symbols_list:
+        s_tickers = get_unique_symbols(s_tickers)
         s_tickers = remove_tickers(s_tickers, bad_symbols_list)
         s_tickers = remove_tickers(s_tickers, existing_symbols_list)
         start_stocks(s_tickers, existing_symbols_list, bad_symbols_list)
     else:
         print("Error! empty stock list")
 
+
+def get_unique_symbols(symbols):
+    list_set = set(symbols)
+    # convert the set to the list
+    new_list = list(list_set)
+    return new_list
 
 def remove_tickers(s_tickers, removal_list):
     for ticker in removal_list:
