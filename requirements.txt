@@ -38,5 +38,5 @@ statsmodels==0.12.2
 threadpoolctl==2.1.0
 timeseriescrossvalidation @ git+https://github.com/DidierRLopes/TimeSeriesCrossValidation.git@master
 tqdm==4.59.0
-urllib3==1.26.4
+urllib3==1.26.5
 yfinance==0.1.55
