@@ -22,7 +22,7 @@ multitasking==0.0.9
 numpy==1.19.2
 pandas==1.1.5
 patsy==0.5.1
-Pillow==8.1.2
+Pillow==8.2.0
 PyMeeus==0.5.10
 pyparsing==2.4.7
 pystan==2.19.1.1
